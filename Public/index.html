@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        #msg-div {
+            background-color: antiquewhite;
+        }
+        #allmsgs {
+            width: 300px;
+            height: auto;
+            border: ;
+            padding: 1%;
+            margin: 1%;
+        }
+        .recived-msg, .sended-msg {
+            min-width: 50px;
+            height: auto;
+            max-width: 150px;
+            border: 0.5px solid black;
+            padding: 2px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            position: relative;
+            clear: both; /* Ensure each message appears below the previous one */
+        }
+        .recived-msg {
+            background-color: rgb(70, 240, 70);
+            color: white;
+            margin: 5px 5px; /* Adjust margin as needed */
+            float: left;
+        }
+        .sended-msg {
+            background-color: rgb(244, 244, 156);
+            color: black;
+            margin: 5px 5px; /* Adjust margin as needed */
+            float: right;
+        }
+    </style>
+    
+</head>
+<body>
+    <center>
+        <h1>HTML File</h1>
+
+        <input id="senderName" type="text" placeholder="sender name">
+        <input id="reciverName" type="text" placeholder="reciver name"><br>
+        <input id="msg" type="text" placeholder="Enter msg">
+        <button onclick="sendMsg()">send</button>
+        <button onclick="join()" >join</button>
+
+        <div id="allmsgs">
+<!--             <P id="recived-msg"></P>
+            <P id="sended-msg"></P> -->
+        </div>
+    </center>
+ 
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    //Code to create connection with server
+    const socket = io();
+
+    
+
+    const Sname = document.getElementById("senderName");
+    const Rname = document.getElementById("reciverName");
+
+    const msg = document.getElementById("msg");
+  //const allmsgs = document.getElementById('allmsgs');
+    const Rmsg = document.getElementById('recived-msg');
+
+    //Code for Acsessing the msgs that are send from server 
+    //the name "server-msg" is must same as given at server side.
+    socket.on('server-msg', msg => {
+        const div = document.getElementById('div');
+        const p = document.createElement('p');
+        const br = document.createElement('br');
+        p.innerHTML = msg;
+        p.classList.add('recived-msg'); // Add your custom class name
+        allmsgs.appendChild(p);
+        allmsgs.appendChild(br);
+    })
+    
+
+const sendMsg = () => {
+    console.log(msg.value);
+    //To send user msg to the server using .emit() method
+    // socket.emit('event-name', value) [event-name] is used at server to access the msg user sent.
+    //socket.emit('user-msg', msg.value);
+
+    socket.emit('p-msg', { msg: msg.value, reciver: Rname.value });
+
+    const div = document.createElement('div');
+    div.classList.add('msg-div');
+    
+    const p = document.createElement('p');
+    p.classList.add('sended-msg'); // Add your custom class name
+    p.innerHTML = msg.value;
+
+    div.appendChild(p);
+    
+    const br = document.createElement('br');
+    allmsgs.appendChild(div);
+    allmsgs.appendChild(br);
+    
+    msg.value = "";
+};
+
+const join = () => {
+//emiting the user name 
+    socket.emit('join',Sname.value);
+}
+
+//For acessing msgs sent from sender by room
+socket.on('p-msg', ({ sender, msg }) => {
+    const div = document.createElement('div');
+    div.classList.add('msg-div');
+
+    const p = document.createElement('p');
+    p.classList.add('recived-msg');
+    p.innerHTML = msg;
+
+    div.appendChild(p);
+
+    const br = document.createElement('br');
+    allmsgs.appendChild(div);
+    allmsgs.appendChild(br);
+
+    console.log(`${sender} says: ${msg}`);
+});
+
+
+
+</script>
+
+</body>
+</html>

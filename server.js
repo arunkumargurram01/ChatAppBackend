@@ -7,6 +7,7 @@ const bodyParser = require('body-parser')
 const cookieParser = require('cookie-parser')
 const bcrypt = require('bcryptjs')
 
+
 const socketIO = require('socket.io');
 
 //JWT Module
@@ -17,7 +18,7 @@ require('dotenv').config();
 //{ connectDB, listallColl, userModel, EmployeesModel } 
 const Mongodb = require('./DBconn')
 const mongoose = require('mongoose');
-const Auth = require('./Authentication');
+// const Auth = require('./Authentication');
 const { userInfo } = require('os');
 
 
@@ -51,11 +52,12 @@ app.use(cors(corsOptions));
 // Creating socket Instance
 const io = socketIO(server, {
   cors: {
-    origin: "http://localhost:3000", // Remove the trailing slash
+    origin: process.env.FRONTEND_URL, // Remove the trailing slash
     methods: ["GET", "POST"],
     credentials: true
   }
 });
+
 
 
 //creating map to store username and 
@@ -300,6 +302,43 @@ io.on('connection', (socket) => {
       
 });
 
+
+
+//Creating a middleware function to check the token and user details whether the token is vailed or not 
+//this method we allocate to every other route after a user logged in for cheking thire token validity
+const authenticateToken = (req, res, next)  => {
+  // console.log(`Middle ware called`)
+   token = req.cookies.JWTcookie;
+   //console.log(`Tokem from Auth : ${token}`);
+    try{
+  // const token = req.cookie.token;
+  // console.log('Cookiee = ', token)
+   if(token==null) {
+       console.log(`No token avialable`)
+       return res.sendStatus(401)
+      // return res.json({"status": "User Not Loged In"})
+   }
+   //comparing jwt token which comes from client request and real token secretKey && userdata by using "jwt.verify()" method 
+   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decode) => {
+       if(err){
+           //console.log(`From Middleware Token not valied`)
+           return res.sendStatus(401)
+       }
+       //username extracted from the "JWT" token payload sent from the user for db operations
+       req.username = decode.name //here payload is "user_Id"
+       // console.log(`From middleware : ${req.username}`)
+       next() //This will allow use to the next step in the "/users" and all other which needs needsto check JWT in route GET method.
+   }) 
+ }
+ catch(err){
+    console.log(`ERROR IN Middleware : ${err}`)
+    res.status(401);
+ }
+}
+
+
+
+
 //emiting socket event outside the io.on() method for sending active users data to frontend
 const sendActiveUsers = async (socket, Activefriends) =>{
   //console.log(`From socket Method Active Friends: ${Activefriends}`)
@@ -422,7 +461,7 @@ app.post('/signup',async(req, res) => {
 
 })
 
-app.post('/islogin', Auth, (req, res) => {
+app.post('/islogin', authenticateToken, (req, res) => {
   try{
     //console.log(`islogin route called`)
     //res.json(`{"status" : "User with Id ${req.user} is logged in and Items can added to Cart"}`)
@@ -436,7 +475,7 @@ app.post('/islogin', Auth, (req, res) => {
 })
 
 
-app.get('/home', Auth, async (req, res) => {
+app.get('/home', authenticateToken, async (req, res) => {
   //console.log(`Username from /home route: ${req.username}`);
   try{
     let uactive = [];
@@ -464,14 +503,14 @@ app.get('/home', Auth, async (req, res) => {
 });
 
 
-app.get('/username', Auth, async (req, res) => {
+app.get('/username', authenticateToken, async (req, res) => {
       res.json({username : req.username})
       //console.log(`username route called`)
 })
 
 
 //Adding a friend to a user by accepting friend request
-app.post('/addfriend',Auth, async(req, res) => {
+app.post('/addfriend',authenticateToken, async(req, res) => {
     // const username = r;
     const result = await Mongodb.addFriend(req.username, req.body.name)
     const addsentrequest = await Mongodb.removeSentRequest(req.body.name, req.username)
@@ -482,7 +521,7 @@ app.post('/addfriend',Auth, async(req, res) => {
 });
 
 //Removing a friend of a user
-app.delete('/removefriend',Auth, async(req, res) => {
+app.delete('/removefriend',authenticateToken, async(req, res) => {
   console.log(`=====================================================================`)
     const result = await Mongodb.removeFriend(req.username, req.body.name)
     if(!result){
@@ -492,7 +531,7 @@ app.delete('/removefriend',Auth, async(req, res) => {
 
 
 //get all friend requests of a user 
-app.get('/getfriendrequest',Auth, async(req, res) => {
+app.get('/getfriendrequest',authenticateToken, async(req, res) => {
   // console.log('Friend request Route :')
    const result = await Mongodb.getAllFriendrequests(req.username);
    res.json({requests: result});
@@ -518,7 +557,7 @@ app.get('/getfriendrequest',Auth, async(req, res) => {
 //     })
 // })
 
-app.get('/getallmsgs', Auth, async(req, res) => {
+app.get('/getallmsgs', authenticateToken, async(req, res) => {
   
  // console.log(`Route Name : ${req.username}`)
    const result = await Mongodb.getAllMsgs(req.username)
@@ -562,7 +601,7 @@ app.get('/updateuser', async (req, res) => {
 const result = await userModel.deleteMany(query);
  */
 
-app.get('/deleteuser',Auth, async(req, res) => {
+app.get('/deleteuser',authenticateToken, async(req, res) => {
   try{
     const result = await Mongodb.userModel.deleteMany({});
     res.send(result)
@@ -587,7 +626,7 @@ app.get('/addfield', async (req, res) => {
   }
 });
 
-app.post('/deletemsgs',Auth,async (req, res) => {
+app.post('/deletemsgs',authenticateToken,async (req, res) => {
   try{
     const { friendName} = req.body;
     const name =  req.username;
@@ -601,7 +640,7 @@ app.post('/deletemsgs',Auth,async (req, res) => {
 })
 
 //FindUsers while users search for a friend by giving name
-app.post('/finduser',Auth, async(req, res) => {
+app.post('/finduser',authenticateToken, async(req, res) => {
   try{
     const userList = await Mongodb.findUser(req.body.name, req.username );
     res.json(userList); // Send response to the client
@@ -613,7 +652,7 @@ app.post('/finduser',Auth, async(req, res) => {
 })
 
 //Retriving the number of friends a user have to show profile to searched users
-app.post('/getuserdetails',Auth, async(req, res) => {
+app.post('/getuserdetails',authenticateToken, async(req, res) => {
   try{
     const userfriends = await Mongodb.getUserDetails(req.body.name, req.username)
     res.json({data : userfriends})
@@ -624,7 +663,7 @@ app.post('/getuserdetails',Auth, async(req, res) => {
 })
 
 //Adding the user name into the sent and recived friend request of both users who sent and recived.
-app.post('/sendfriendrequest',Auth,async(req, res) => {
+app.post('/sendfriendrequest',authenticateToken,async(req, res) => {
   try{
     //Accessing the current user name from AUTH function 'req.username' not sent from frontend
     const addsentrequest = await Mongodb.addSentRequest(req.username,req.body.name)
@@ -643,7 +682,7 @@ app.post('/sendfriendrequest',Auth,async(req, res) => {
 })
 
 //Removing or Ignoring A user friend request from Friend requests DB
-app.post('/ignorefriend',Auth,async(req, res) => {
+app.post('/ignorefriend',authenticateToken,async(req, res) => {
   try{
     //Accessing the current user name from AUTH function 'req.username' not sent from frontend
     const addsentrequest = await Mongodb.removeSentRequest(req.body.name,req.username)
@@ -662,7 +701,7 @@ app.post('/ignorefriend',Auth,async(req, res) => {
 })
 
 
-app.post('/removefriendrequest',Auth,async(req, res) => {
+app.post('/removefriendrequest',authenticateToken,async(req, res) => {
   try{
     //Accessing the current user name from AUTH function 'req.username' not sent from frontend
     const addsentrequest = await Mongodb.removeSentRequest(req.username,req.body.name)

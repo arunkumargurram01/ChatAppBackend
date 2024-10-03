@@ -400,7 +400,12 @@ app.post('/', async (req, res) => {
             if(await bcrypt.compare(password, pwd)){
               name = result[0].name;
               const accessToken = jwt.sign({name}, process.env.ACCESS_TOKEN_SECRET) //using uid as payload for serilization and to find a specific user for db operations & authorization in sub sequent requests
-              res.cookie('JWTcookie', accessToken );
+              // Set the cookie
+              res.cookie('JWTcookie', accessToken, {
+                  httpOnly: true,
+                  secure: true, // Ensure this is true if using HTTPS
+                  sameSite: 'None', // Adjust according to your needs
+              });
               // console.log(`Login : ${accessToken},  name : ${username}`)
               res.json({"token" :accessToken, "access": true,"username":name})
             }
@@ -440,7 +445,12 @@ app.post('/signup',async(req, res) => {
           if(dboperation){
             //Creating JWT token by adding user name into it  and sending as a cookie to the client
             const accessToken = jwt.sign({name}, process.env.ACCESS_TOKEN_SECRET) //using uid as payload for serilization and to find a specific user for db operations & authorization in sub sequent requests
-            res.cookie('JWTcookie', accessToken );
+             // Set the cookie
+              res.cookie('JWTcookie', accessToken, {
+                  httpOnly: true,
+                  secure: true, // Ensure this is true if using HTTPS
+                  sameSite: 'None', // Adjust according to your needs
+              });
             res.json({"token" :accessToken, "access": true,"username":username})
           }
         }
